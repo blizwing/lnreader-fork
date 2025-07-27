@@ -53,6 +53,22 @@ export const createTables = () => {
       db.runSync(createCategoryTriggerQuery);
       db.runSync(createChapterIndexQuery);
       db.runSync(createRepositoryTableQuery);
+      db.runSync(`CREATE TABLE IF NOT EXISTS Summaries (
+        chapter_id INTEGER PRIMARY KEY,
+        summary TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (chapter_id) REFERENCES Chapter(id) ON DELETE CASCADE
+      );`);
+      db.runSync(`CREATE TRIGGER IF NOT EXISTS delete_summary_after_chapter_insert
+        AFTER INSERT ON Chapter
+        BEGIN
+          DELETE FROM Summaries WHERE chapter_id = NEW.id;
+        END;`);
+      db.runSync(`CREATE TRIGGER IF NOT EXISTS delete_summary_after_chapter_update
+        AFTER UPDATE ON Chapter
+        BEGIN
+          DELETE FROM Summaries WHERE chapter_id = NEW.id;
+        END;`);
       db.runSync(createNovelTriggerQueryInsert);
       db.runSync(createNovelTriggerQueryUpdate);
       db.runSync(createNovelTriggerQueryDelete);

@@ -54,3 +54,11 @@ codebase, however you can always check to see if the source code is compliant by
 ```bash
 npm run lint
 ```
+
+## Summarize Plugin
+
+The Summarize plugin uses OpenAI to generate chapter summaries. To enable and configure it:
+
+1. Set `OPENAI_API_KEY` in your environment. You can add this variable to a `.env` file or export it in your shell before starting the app.
+2. In `app.json`, add `"../src/plugins/SummarizerPlugin"` to the `expo.plugins` array to load the plugin. Remove the entry to disable it.
+3. The default prompt and token limit for summaries are defined in `src/services/SummarizationService.ts`. Adjust the `prompt` or `max_tokens` values to tweak summary generation.

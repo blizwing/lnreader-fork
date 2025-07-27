@@ -29,6 +29,9 @@ export type RootStackParamList = {
     pluginId: string;
     isNovel?: boolean;
   };
+  SummaryScreen: {
+    chapterId: number;
+  };
 };
 
 export type BottomNavigatorParamList = {
@@ -152,6 +155,10 @@ export type SourceNovelsScreenProps = StackScreenProps<
 export type WebviewScreenProps = StackScreenProps<
   RootStackParamList,
   'WebviewScreen'
+>;
+export type SummaryScreenProps = StackScreenProps<
+  RootStackParamList,
+  'SummaryScreen'
 >;
 export type SettingsScreenProps = CompositeScreenProps<
   StackScreenProps<SettingsStackParamList, 'Settings'>,

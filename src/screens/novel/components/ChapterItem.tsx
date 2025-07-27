@@ -10,6 +10,7 @@ import { ThemeColors } from '@theme/types';
 import { ChapterInfo } from '@database/types';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@strings/translations';
+import { IconButtonV2 } from '@components';
 
 interface ChapterItemProps {
   isDownloading?: boolean;
@@ -28,6 +29,8 @@ interface ChapterItemProps {
   isLocal: boolean;
   isUpdateCard?: boolean;
   novelName: string;
+  onWebViewPress?: (chapter: ChapterInfo) => void;
+  onSummaryPress?: (chapter: ChapterInfo) => void;
 }
 
 const ChapterItem: React.FC<ChapterItemProps> = ({
@@ -47,6 +50,8 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
   left,
   isUpdateCard,
   novelName,
+  onWebViewPress,
+  onSummaryPress,
 }) => {
   const { id, name, unread, releaseTime, bookmark, chapterNumber, progress } =
     chapter;
@@ -173,6 +178,20 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
             setChapterDownloaded={setChapterDownloaded}
             deleteChapter={deleteChapter}
             downloadChapter={downloadChapter}
+          />
+        ) : null}
+        {onWebViewPress ? (
+          <IconButtonV2
+            name="earth"
+            theme={theme}
+            onPress={() => onWebViewPress(chapter)}
+          />
+        ) : null}
+        {onSummaryPress ? (
+          <IconButtonV2
+            name="file-document-outline"
+            theme={theme}
+            onPress={() => onSummaryPress(chapter)}
           />
         ) : null}
       </Pressable>
