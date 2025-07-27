@@ -15,6 +15,11 @@ import {
 import { migrateNovel, MigrateNovelData } from './migrate/migrateNovel';
 import { downloadChapter } from './download/downloadChapter';
 import { askForPostNotificationsPermission } from '@utils/askForPostNoftificationsPermission';
+import { fetchOrGenerateSummary } from './SummarizationService';
+import { getNovelById } from '@database/queries/NovelQueries';
+import { LAST_READ_PREFIX } from '@hooks/persisted/useNovel';
+import { ChapterInfo } from '@database/types';
+import { db } from '@database/db';
 
 type taskNames =
   | 'IMPORT_EPUB'
@@ -24,7 +29,8 @@ type taskNames =
   | 'SELF_HOST_BACKUP'
   | 'SELF_HOST_RESTORE'
   | 'MIGRATE_NOVEL'
-  | 'DOWNLOAD_CHAPTER';
+  | 'DOWNLOAD_CHAPTER'
+  | 'PRECACHE_SUMMARIES';
 
 export type BackgroundTask =
   | {
@@ -46,6 +52,7 @@ export type BackgroundTask =
   | { name: 'SELF_HOST_BACKUP'; data: SelfHostData }
   | { name: 'SELF_HOST_RESTORE'; data: SelfHostData }
   | { name: 'MIGRATE_NOVEL'; data: MigrateNovelData }
+  | { name: 'PRECACHE_SUMMARIES'; data: { novelId: number } }
   | DownloadChapterTask;
 export type DownloadChapterTask = {
   name: 'DOWNLOAD_CHAPTER';
@@ -63,6 +70,53 @@ export type QueuedBackgroundTask = {
   task: BackgroundTask;
   meta: BackgroundTaskMetadata;
   id: string;
+};
+
+export const precacheSummaries = async (
+  { novelId }: { novelId: number },
+  setMeta: (
+    transformer: (meta: BackgroundTaskMetadata) => BackgroundTaskMetadata,
+  ) => void,
+) => {
+  setMeta(meta => ({ ...meta, isRunning: true, progress: 0 }));
+  const novel = await getNovelById(novelId);
+  if (!novel) {
+    throw new Error('Novel not found');
+  }
+  const lastRead = getMMKVObject<ChapterInfo>(
+    `${LAST_READ_PREFIX}_${novel.pluginId}_${novel.path}`,
+  );
+
+  const page = lastRead?.page ?? '1';
+  const position = lastRead?.position ?? -1;
+
+  const chapters = db.getAllSync<{ id: number }>([
+    `SELECT id FROM Chapter
+      WHERE novelId = ?
+        AND (
+          (page = ? AND position > ?)
+          OR (position = 0 AND page > ?)
+        )
+      ORDER BY page ASC, position ASC
+      LIMIT 5`,
+    [novelId, page, position, page],
+  ]);
+
+  for (let i = 0; i < chapters.length; i++) {
+    const chapterId = chapters[i].id;
+    setMeta(meta => ({
+      ...meta,
+      progress: chapters.length ? i / chapters.length : 0,
+      progressText: `Chapter ${chapterId}`,
+    }));
+    try {
+      await fetchOrGenerateSummary(String(chapterId));
+    } catch {
+      // ignore errors when generating summary
+    }
+  }
+
+  setMeta(meta => ({ ...meta, progress: 1, isRunning: false }));
 };
 
 function makeId() {
@@ -237,6 +291,8 @@ export default class ServiceManager {
         return migrateNovel(task.task.data, this.setMeta.bind(this));
       case 'DOWNLOAD_CHAPTER':
         return downloadChapter(task.task.data, this.setMeta.bind(this));
+      case 'PRECACHE_SUMMARIES':
+        return precacheSummaries(task.task.data, this.setMeta.bind(this));
     }
   }
 
@@ -252,6 +308,7 @@ export default class ServiceManager {
       'SELF_HOST_RESTORE': 0,
       'MIGRATE_NOVEL': 0,
       'DOWNLOAD_CHAPTER': 0,
+      'PRECACHE_SUMMARIES': 0,
     };
     const startingTasks = manager.getTaskList();
     const tasksSet = new Set(startingTasks.map(t => t.id));
@@ -323,6 +380,8 @@ export default class ServiceManager {
         return 'Self Host Backup';
       case 'SELF_HOST_RESTORE':
         return 'Self Host Restore';
+      case 'PRECACHE_SUMMARIES':
+        return 'Cache Summaries';
       default:
         return 'Unknown Task';
     }

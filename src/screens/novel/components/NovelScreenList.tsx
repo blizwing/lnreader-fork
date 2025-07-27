@@ -230,6 +230,18 @@ const NovelScreenList = ({
     });
   };
 
+  const openChapterWebView = (chapter: ChapterInfo) => {
+    navigation.navigate('WebviewScreen', {
+      name: novel.name,
+      url: chapter.path,
+      pluginId: novel.pluginId,
+    });
+  };
+
+  const openChapterSummary = (chapter: ChapterInfo) => {
+    navigation.navigate('SummaryScreen', { chapterId: chapter.id });
+  };
+
   const setCustomNovelCover = async () => {
     if (!novel || novel.id === 'NO_ID') {
       return;
@@ -333,6 +345,8 @@ const NovelScreenList = ({
               onSelectLongPress={onSelectLongPress}
               navigateToChapter={navigateToChapter}
               novelName={novel.name}
+              onWebViewPress={openChapterWebView}
+              onSummaryPress={openChapterSummary}
               setChapterDownloaded={(value: boolean) =>
                 updateChapter?.(index, { isDownloaded: value })
               }
